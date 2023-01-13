@@ -62,3 +62,22 @@ make dev-user-tasks name=04 user_id=1
 ```
 
 You can see dynamo db table accessing: http://localhost:8001/tables/
+
+
+Make commands:
+```shell
+help                           This help
+dev-init                       dev-init will install needed serverless plugins
+dev-start                      dev-start will start localstack and deploy serverless and push lambdas to it
+dev-deploy                     dev-deploy will run serverless and deploy changes
+dev-push-lambdas               dev-push-lambdas will push lambdas to localstack
+dev-get-links                  dev-get-links will create a url so you can test lambda functions
+dev-list-sms                   dev-list-sms will list you the orchestrator state machine executions
+dev-start-sm                   dev-start-sm will allow you to start a new orchestrator execution: make dev-start-sm name=01
+dev-addTask                    dev-addTask will allow you to add test tasks
+dev-firstTask                  dev-firstTask will allow you to add test this lambda function firstTask
+dev-list-tables                dev-list-tables will list the dynamoDb tables created
+dev-pull-pending-tasks         dev-pull-pending-tasks will allow you to add test this lambda function pullQueuedTasksByUserId: make dev-pull-pending-tasks user_id=1111010101
+dev-user-tasks                 dev-user-tasks will allow you to trigger userTasksStateMachine: make dev-user-tasks name=01 user_id=101010101102
+
+```
