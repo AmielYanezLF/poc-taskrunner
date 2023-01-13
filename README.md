@@ -60,3 +60,5 @@ Test UserTasks State Machine
 ```shell
 make dev-user-tasks name=04 user_id=1
 ```
+
+You can see dynamo db table accessing: http://localhost:8001/tables/
