@@ -15,6 +15,7 @@ custom:
   runTaskFunctionName: task-runner-${self:provider.stage}-runTask
   pullFirstTaskFunctionName: task-runner-${self:provider.stage}-pullFirstTask
   pullQueuedTasksByUserIdFunctionName: task-runner-${self:provider.stage}-pullQueuedTasksByUserId
+  pullPendingTasksByUserIdFunctionName: task-runner-${self:provider.stage}-pullPendingTasksByUserId
 
 provider:
   name: aws
@@ -70,6 +71,14 @@ functions:
       - http:
           path: '/tasks'
           method: post
+
+  pullPendingTasksByUserId:
+    handler: index.pullPendingTasksByUserId
+    url: true
+    events:
+      - http:
+          path: '/tasks'
+          method: post
   pullFirstTask:
     handler: index.pullFirstTask
     url: true
@@ -97,7 +106,7 @@ stepFunctions:
                       TableName: ${self:provider.environment.DYNAMODB_LOCK_TABLE}
                       Key:
                         lockName:
-                          "S": "$.input.user_id"
+                          "S.$": "$.user_id"
                       ExpressionAttributeNames:
                         "#currentlockcount": "currentLockCount"
                         "#lockownerid.$": "$$.Execution.Id"
@@ -136,12 +145,12 @@ stepFunctions:
                       TableName: ${self:provider.environment.DYNAMODB_LOCK_TABLE}
                       Item:
                         lockName:
-                          "S": "$.input.user_id"
+                          "S.$": "$.user_id"
                         currentLockCount:
                           "N": 0
                       ExpressionAttributeValues:
                         ":lockname":
-                          "S": "$.input.user_id"
+                          "S.$": "$.user_id"
                       ConditionExpression: "lockName <> :lockname"
                     Catch:
                       - ErrorEquals:
@@ -159,7 +168,7 @@ stepFunctions:
                         "#lockownerid.$": "$$.Execution.Id"
                       Key:
                         lockName:
-                          "S": "$.input.user_id"
+                          "S.$": "$.user_id"
                       ProjectionExpression: "#lockownerid"
                     ResultSelector:
                       "Item.$": "$.Item"
@@ -184,34 +193,19 @@ stepFunctions:
                     Seconds: 3
                     Next: AcquireLock
             ResultPath: null
-            Next: PendingToRunning
-          PendingToRunning:
-            Type: Task
-            Resource: "arn:aws:states:::dynamodb:updateItem"
-            Parameters:
-              TableName: ${self:provider.environment.DYNAMODB_TASKS_TABLE}
-              Key:
-                user_id: "$.input.user_id"
-              ExpressionAttributeNames:
-                "#status": "status"
-              ExpressionAttributeValues:
-                ":pending_status": "0"
-                ":queued_status": "1"
-              UpdateExpression: "SET #status = :queued_status"
-              ConditionExpression: "status = 0"
-            Next: PullQueuedTasks
-          PullQueuedTasks:
+            Next: PullPendingTasks
+          PullPendingTasks:
             Type: Task
             Resource:
-              Fn::GetAtt: [ pullQueuedTasksByUserId, Arn ]
+              Fn::GetAtt: [ pullPendingTasksByUserId, Arn ]
             Parameters:
-              "user_id.$": "$.input.user_id"
+              "user_id.$": "$.user_id"
             ResultPath: "$.tasks"
             Next: "ValidateTasksNotEmpty"
           ValidateTasksNotEmpty:
             Type: Choice
             Choices:
-              - Variable: "$.tasks"
+              - Variable: "$.tasks[0]"
                 IsPresent: true
                 Next: RunUserTasks
             Default: ReleaseLock
@@ -222,8 +216,32 @@ stepFunctions:
             Parameters:
               "task.$": "$$.Map.Item.Value"
             Iterator:
-              StartAt: "RunTask"
+              StartAt: "PendingToRunning"
               States:
+                PendingToRunning:
+                  Type: Task
+                  Resource: "arn:aws:states:::dynamodb:updateItem"
+                  Parameters:
+                    TableName: ${self:provider.environment.DYNAMODB_TASKS_TABLE}
+                    Key:
+                      user_id:
+                        "S.$": "$.task.user_id"
+                      task_id:
+                        "S.$": "$.task.task_id"
+                    ExpressionAttributeNames:
+                      "#status": "status"
+                      "#started_at": "started_at"
+                    ExpressionAttributeValues:
+#                      ":pending_status":
+#                        "S": "0"
+                      ":running_status":
+                        "S": "2"
+                      ":started_at":
+                        "S.$": "$$.State.EnteredTime"
+                    UpdateExpression: "SET #status = :running_status, #started_at = :started_at"
+#                    ConditionExpression: "#status = :pending_status"
+                  ResultPath: null
+                  Next: RunTask
                 RunTask:
                   Type: Task
                   Resource:
@@ -233,6 +251,7 @@ stepFunctions:
                         - States.ALL
                       Next: UpdateTaskErrored
                   Next: UpdateSucceeded
+                  ResultPath: null
                 UpdateSucceeded:
                   Type: Task
                   Resource: arn:aws:states:::dynamodb:updateItem
@@ -250,6 +269,7 @@ stepFunctions:
                       ":status":
                         "S": "3"
                   Next: Done
+                  ResultPath: null
                 UpdateTaskErrored:
                   Type: Task
                   Resource: arn:aws:states:::dynamodb:updateItem
@@ -267,10 +287,13 @@ stepFunctions:
                       ":status":
                         "S": "4"
                   Next: Done
+                  ResultPath: null
                 Done:
                   Type: Pass
                   End: true
-            Next: PullQueuedTasks
+                  ResultPath: null
+            ResultPath: null
+            Next: PullPendingTasks
           ReleaseLock:
             Type: Task
             Resource: "arn:aws:states:::dynamodb:updateItem"
@@ -278,7 +301,7 @@ stepFunctions:
               TableName: ${self:provider.environment.DYNAMODB_LOCK_TABLE}
               Key:
                 lockName:
-                  "S": "$.input.user_id"
+                  "S.$": "$.user_id"
               ExpressionAttributeNames:
                 "#currentlockcount": "currentLockCount"
                 "#lockownerid.$": "$$.Execution.Id"

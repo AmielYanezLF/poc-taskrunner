@@ -7,7 +7,7 @@
     "esbuild": "^0.15.11",
     "serverless-dynamodb-local": "^0.2.40",
     "serverless-localstack": "^1.0.1",
-    "serverless-step-functions": "^3.11.1"
+    "serverless-step-functions": "^3.12.1"
   },
   "dependencies": {
     "@influxdata/influxdb-client": "^1.32.0",

@@ -25,7 +25,9 @@ dev-deploy: ## dev-deploy will run serverless and deploy changes
 dev-push-lambdas: ## dev-push-lambdas will push lambdas to localstack
 	npm run build && npm run export &&\
 	awslocal lambda --region us-west-1 update-function-code --function-name task-runner-local-addTask --zip-file fileb://build/main.js.zip && \
+	awslocal lambda --region us-west-1 update-function-code --function-name task-runner-local-runTask --zip-file fileb://build/main.js.zip && \
 	awslocal lambda --region us-west-1 update-function-code --function-name task-runner-local-pullQueuedTasksByUserId --zip-file fileb://build/main.js.zip && \
+	awslocal lambda --region us-west-1 update-function-code --function-name task-runner-local-pullPendingTasksByUserId --zip-file fileb://build/main.js.zip && \
 	awslocal lambda --region us-west-1 update-function-code --function-name task-runner-local-pullFirstTask --zip-file fileb://build/main.js.zip
 
 .PHONY: dev-get-links
@@ -33,11 +35,15 @@ dev-get-links: ## dev-get-links will create a url so you can test lambda functio
 	awslocal lambda create-function-url-config \
         --region us-west-1 \
         --function-name task-runner-local-addTask \
-        --auth-type NONE &&\
+        --auth-type NONE | grep FunctionUrl &&\
 	awslocal lambda create-function-url-config \
         --region us-west-1 \
         --function-name task-runner-local-pullQueuedTasksByUserId \
-        --auth-type NONE &&\
+        --auth-type NONE | grep FunctionUrl &&\
+    awslocal lambda create-function-url-config \
+        --region us-west-1 \
+        --function-name task-runner-local-pullPendingTasksByUserId \
+        --auth-type NONE | grep FunctionUrl &&\
   	awslocal lambda create-function-url-config \
             --region us-west-1 \
             --function-name task-runner-local-pullFirstTask \
@@ -66,7 +72,11 @@ dev-list-tables: ## dev-list-tables will list the dynamoDb tables created
 
 .PHONY: dev-pull-pending-tasks
 dev-pull-pending-tasks: ## dev-pull-pending-tasks will allow you to add test this lambda function pullQueuedTasksByUserId: make dev-pull-pending-tasks user_id=1111010101
-	serverless invoke local --stage local --function pullQueuedTasksByUserId --data '{"user_id": "${user_id}"}'
+	serverless invoke local --stage local --function pullPendingTasksByUserId --data '{"user_id": "${user_id}"}'
+
+.PHONY: dev-pull-pending-tasks
+dev-run-task: ## dev-pull-pending-tasks will allow you to add test this lambda function pullQueuedTasksByUserId: make dev-pull-pending-tasks user_id=1111010101
+	serverless invoke local --stage local --function pullPendingTasksByUserId --data '{"user_id": "${user_id}"}'
 
 .PHONY: dev-user-tasks
 dev-user-tasks: ## dev-user-tasks will allow you to trigger userTasksStateMachine: make dev-user-tasks name=01 user_id=101010101102

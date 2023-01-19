@@ -1,5 +1,6 @@
 const { ulid } = require("ulid");
 const {storeTask, pullTasksByUserId, pullFirstTask} = require("./data");
+const {StatusType} = require("./types");
 
 
 module.exports.addTask = async (event) => {
@@ -35,6 +36,19 @@ module.exports.pullQueuedTasksByUserId = async (event) => {
   console.log(JSON.stringify(event))
   try{
     const result = await pullTasksByUserId(event.user_id);
+    console.log('pulling queued tasks', result);
+    return result;
+  } catch (e) {
+    console.log('Error pulling Tasks', e);
+    return {"error": "No queued task found!"}
+  }
+  return {};
+}
+module.exports.pullPendingTasksByUserId = async (event) => {
+  console.log('pulling queued tasks by User ID! ');
+  console.log(JSON.stringify(event))
+  try{
+    const result = await pullTasksByUserId(event.user_id, StatusType.PENDING);
     console.log('pulling queued tasks', result);
     return result;
   } catch (e) {

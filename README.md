@@ -28,12 +28,12 @@ make dev-init && make dev-start
 
 On another shell run this to get urls:
 ```shell
-make dev-
+make dev-get-links
 ```
 
 Copy the url of addTask and replace it here:
 ```shell
-curl --location --request POST 'http://eee9865e8961215c47ce2e8c1192f5d5.lambda-url.us-west-1.localhost.localstack.cloud:4566/' \
+curl --location --request POST 'http://777a5226d802966eb7fe7a9f75ba5d51.lambda-url.us-west-1.localhost.localstack.cloud:4566/' \
 --header 'Content-Type: application/json' \
 --data-raw '{
     "priority": 0,
@@ -41,6 +41,16 @@ curl --location --request POST 'http://eee9865e8961215c47ce2e8c1192f5d5.lambda-u
     "user_id": 1,
     "context": {
       "name": "test 1"
+    }
+}'
+curl --location --request POST 'http://777a5226d802966eb7fe7a9f75ba5d51.lambda-url.us-west-1.localhost.localstack.cloud:4566/' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "priority": 5,
+    "task_id": 2,
+    "user_id": 1,
+    "context": {
+      "name": "test 2"
     }
 }'
 ```
